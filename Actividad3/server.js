@@ -11,9 +11,17 @@ let productos = [
 
 let siguienteId = 3;
 
+
+// Rutas de la API
+// GET /productos: Devuelve todos los productos
+
+
 app.get("/productos", (req, res) => {
   res.status(200).json(productos);
 });
+
+// GET /productos/:id: Devuelve un producto por su ID
+
 
 app.get("/productos/:id", (req, res) => {
   const id = Number(req.params.id);
@@ -31,6 +39,9 @@ app.get("/productos/:id", (req, res) => {
     res.status(404).json({ error: "Producto no encontrado" });
   } 
 });
+
+
+// POST /productos: Crea un nuevo producto
 
 app.post("/productos", (req, res) => {
     const { nombre, precio, stock } = req.body;
@@ -52,6 +63,9 @@ app.post("/productos", (req, res) => {
     res.status(201).json(nuevo);
 });
 
+
+// DELETE /productos/:id: Elimina un producto por su ID
+
 app.delete("/productos/:id", (req, res) => {
   const id = Number(req.params.id);
   const i = productos.findIndex((p) => p.id === id);
@@ -61,6 +75,9 @@ app.delete("/productos/:id", (req, res) => {
   res.status(200).json({
     mensaje: "Producto eliminado correctamente"})
 });
+
+
+// PUT /productos/:id: Actualiza un producto por su ID
 
 app.put("/productos/:id", (req, res) => {
   const id = Number(req.params.id);
@@ -77,14 +94,46 @@ app.put("/productos/:id", (req, res) => {
         typeof precio !== "number" || precio < 0 ||
         typeof stock !== "number" || stock < 0
     ) {
-        return res.status(400).json({
-            error: "El precio y el stock deben ser números mayores o iguales a 0"
-        });
+        return res.status(400).json({error: "El precio y el stock deben ser números mayores o iguales a 0"});
     }
 
-  productos[i] = { ...productos[i], nombre, precio, stock };
+  productos[i].nombre = nombre;
+  productos[i].precio = precio;
+  productos[i].stock = stock;
+
   res.status(200).json(productos[i]);
 });
+
+// PATCH /productos/:id: Actualiza parcialmente un producto por su ID
+
+app.patch("/productos/:id", (req, res) => {
+  const id = Number(req.params.id);
+  const { nombre, precio, stock } = req.body;
+  const i = productos.findIndex((p) => p.id === id);  
+
+  if (i === -1) {
+    return res.status(404).json({ error: "Producto no encontrado" });
+  }
+
+  if (nombre === undefined && precio === undefined && stock === undefined) {
+    return res.status(400).json({ error: "No se proporcionaron datos para actualizar" });
+  }
+
+  if (precio !== undefined && (typeof precio !== "number" || precio < 0)) {
+    return res.status(400).json({ error: "El precio debe ser un número mayor o igual a 0" });
+  }
+
+  if (stock !== undefined && (typeof stock !== "number" || stock < 0)) {
+    return res.status(400).json({ error: "El stock debe ser un número mayor o igual a 0" });
+  }
+
+  if (nombre !== undefined) productos[i].nombre = nombre;
+  if (precio !== undefined) productos[i].precio = precio;
+  if (stock !== undefined) productos[i].stock = stock;
+
+  res.status(200).json(productos[i]);
+});
+
 
 app.listen(3000, () => {
   console.log("Servidor escuchando en http://localhost:3000");
