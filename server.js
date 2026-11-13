@@ -72,8 +72,7 @@ app.delete("/productos/:id", (req, res) => {
   if (i === -1) 
     return res.status(404).json({ error: "Producto no encontrado" });
   productos.splice(i, 1);
-  res.status(200).json({
-    mensaje: "Producto eliminado correctamente"})
+  res.status(204).send();
 });
 
 
