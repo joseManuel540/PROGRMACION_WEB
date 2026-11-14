@@ -1,139 +1,208 @@
 import express from "express";
+import { db } from "./db.js";
 
 const app = express();
 app.set("json spaces", 2);
 app.use(express.json());
 
-let productos = [
-  { id: 1, nombre: "Producto 1", precio: 10 },
-  { id: 2, nombre: "Producto 2", precio: 20 },
-];
-
-let siguienteId = 3;
-
-
-// Rutas de la API
-// GET /productos: Devuelve todos los productos
-
-
-app.get("/productos", (req, res) => {
-  res.status(200).json(productos);
+// GET /productos
+app.get("/productos", async (req, res) => {
+  try {
+    const [filas] = await db.query("SELECT * FROM productos");
+    res.status(200).json(filas);
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).json({ error: "Error en la base de datos" });
+  }
 });
 
-// GET /productos/:id: Devuelve un producto por su ID
+// GET /productos/:id
+app.get("/productos/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const [filas] = await db.query(
+      "SELECT * FROM productos WHERE id = ?", [id]
+    );
 
+    if (filas.length === 0) {
+      return res.status(404).json({ error: "No existe" });
+    }
 
-app.get("/productos/:id", (req, res) => {
-  const id = Number(req.params.id);
-  let encontrado = null;
-
-  for (let i = 0; i < productos.length; i++) {
-    if (productos[i].id === id) {
-      encontrado = productos[i];
-      break;
-    }}
-
-  if (encontrado) {
-    res.status(200).json(encontrado);
-  } else {
-    res.status(404).json({ error: "Producto no encontrado" });
-  } 
+    res.status(200).json(filas[0]);
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).json({ error: "Error en la base de datos" });
+  }
 });
 
-
-// POST /productos: Crea un nuevo producto
-
-app.post("/productos", (req, res) => {
+// POST - Crear un nuevo producto
+app.post("/productos", async (req, res) => {
+  try {
     const { nombre, precio, stock } = req.body;
-    if (!nombre || precio === undefined || stock === undefined) {
-        return res.status(400).json({ error: "Faltan datos del producto" });
-    }
 
     if (
-        typeof precio !== "number" || precio < 0 ||
-        typeof stock !== "number" || stock < 0
+      typeof nombre !== "string" ||
+      nombre.trim() === "" ||
+      typeof precio !== "number" ||
+      !Number.isFinite(precio) ||
+      precio < 0 ||
+      !Number.isInteger(stock) ||
+      stock < 0
     ) {
-        return res.status(400).json({
-            error: "El precio y el stock deben ser números mayores o iguales a 0"
-        });
+      return res.status(400).json({
+        error: "Los datos del producto no son válidos"
+      });
     }
 
-    const nuevo = { id: siguienteId++, nombre, precio, stock };
-    productos.push(nuevo);
-    res.status(201).json(nuevo);
+    const [resultado] = await db.query(
+      "INSERT INTO productos (nombre, precio, stock) VALUES (?, ?, ?)",
+      [nombre.trim(), precio, stock]
+    );
+
+    const nuevoProducto = {
+      id: resultado.insertId,
+      nombre: nombre.trim(),
+      precio,
+      stock
+    };
+
+    res.status(201).json(nuevoProducto);
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).json({ error: "Error en la base de datos" });
+  }
 });
 
+// PUT - Reemplazar todos los datos de un producto
+app.put("/productos/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
 
-// DELETE /productos/:id: Elimina un producto por su ID
+    const [filas] = await db.query(
+      "SELECT * FROM productos WHERE id = ?", [id]
+    );
 
-app.delete("/productos/:id", (req, res) => {
-  const id = Number(req.params.id);
-  const i = productos.findIndex((p) => p.id === id);
-  if (i === -1) 
-    return res.status(404).json({ error: "Producto no encontrado" });
-  productos.splice(i, 1);
-  res.status(204).send();
-});
+    if (filas.length === 0) {
+      return res.status(404).json({
+        error: "Producto no encontrado"
+      });
+    }
 
-
-// PUT /productos/:id: Actualiza un producto por su ID
-
-app.put("/productos/:id", (req, res) => {
-  const id = Number(req.params.id);
-  const { nombre, precio, stock } = req.body;
-  const i = productos.findIndex((p) => p.id === id);
-  if (i === -1) {
-    return res.status(404).json({ error: "Producto no encontrado" });
-  }
-  if (!nombre || precio === undefined || stock === undefined) {
-    return res.status(400).json({ error: "Faltan datos del producto" });
-  }
+    const { nombre, precio, stock } = req.body;
 
     if (
-        typeof precio !== "number" || precio < 0 ||
-        typeof stock !== "number" || stock < 0
+      typeof nombre !== "string" ||
+      nombre.trim() === "" ||
+      typeof precio !== "number" ||
+      !Number.isFinite(precio) ||
+      precio < 0 ||
+      !Number.isInteger(stock) ||
+      stock < 0
     ) {
-        return res.status(400).json({error: "El precio y el stock deben ser números mayores o iguales a 0"});
+      return res.status(400).json({
+        error: "Los datos del producto no son válidos"
+      });
     }
 
-  productos[i].nombre = nombre;
-  productos[i].precio = precio;
-  productos[i].stock = stock;
+    await db.query(
+      "UPDATE productos SET nombre = ?, precio = ?, stock = ? WHERE id = ?",
+      [nombre.trim(), precio, stock, id]
+    );
 
-  res.status(200).json(productos[i]);
+    res.status(200).json({
+      id,
+      nombre: nombre.trim(),
+      precio,
+      stock
+    });
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).json({ error: "Error en la base de datos" });
+  }
 });
 
-// PATCH /productos/:id: Actualiza parcialmente un producto por su ID
+// PATCH - Actualizar algunos datos de un producto
+app.patch("/productos/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
 
-app.patch("/productos/:id", (req, res) => {
-  const id = Number(req.params.id);
-  const { nombre, precio, stock } = req.body;
-  const i = productos.findIndex((p) => p.id === id);  
+    const [filas] = await db.query(
+      "SELECT * FROM productos WHERE id = ?", [id]
+    );
 
-  if (i === -1) {
-    return res.status(404).json({ error: "Producto no encontrado" });
+    if (filas.length === 0) {
+      return res.status(404).json({
+        error: "Producto no encontrado"
+      });
+    }
+
+    const producto = filas[0];
+    const { nombre, precio, stock } = req.body;
+
+    if (
+      (nombre === undefined &&
+        precio === undefined &&
+        stock === undefined) ||
+      (nombre !== undefined &&
+        (typeof nombre !== "string" || nombre.trim() === "")) ||
+      (precio !== undefined &&
+        (typeof precio !== "number" ||
+          !Number.isFinite(precio) || precio < 0)) ||
+      (stock !== undefined &&
+        (!Number.isInteger(stock) || stock < 0))
+    ) {
+      return res.status(400).json({
+        error: "Los datos para actualizar no son válidos"
+      });
+    }
+
+    if (nombre !== undefined) {
+      producto.nombre = nombre.trim();
+    }
+
+    if (precio !== undefined) {
+      producto.precio = precio;
+    }
+
+    if (stock !== undefined) {
+      producto.stock = stock;
+    }
+
+    await db.query(
+      "UPDATE productos SET nombre = ?, precio = ?, stock = ? WHERE id = ?",
+      [producto.nombre, producto.precio, producto.stock, id]
+    );
+
+    res.status(200).json(producto);
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).json({ error: "Error en la base de datos" });
   }
-
-  if (nombre === undefined && precio === undefined && stock === undefined) {
-    return res.status(400).json({ error: "No se proporcionaron datos para actualizar" });
-  }
-
-  if (precio !== undefined && (typeof precio !== "number" || precio < 0)) {
-    return res.status(400).json({ error: "El precio debe ser un número mayor o igual a 0" });
-  }
-
-  if (stock !== undefined && (typeof stock !== "number" || stock < 0)) {
-    return res.status(400).json({ error: "El stock debe ser un número mayor o igual a 0" });
-  }
-
-  if (nombre !== undefined) productos[i].nombre = nombre;
-  if (precio !== undefined) productos[i].precio = precio;
-  if (stock !== undefined) productos[i].stock = stock;
-
-  res.status(200).json(productos[i]);
 });
 
+// DELETE - Eliminar un producto por ID
+app.delete("/productos/:id", async (req, res) => {
+  try {
+    const id = Number(req.params.id);
 
+    const [resultado] = await db.query(
+      "DELETE FROM productos WHERE id = ?", [id]
+    );
+
+    if (resultado.affectedRows === 0) {
+      return res.status(404).json({
+        error: "Producto no encontrado"
+      });
+    }
+
+    res.status(204).send();
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).json({ error: "Error en la base de datos" });
+  }
+});
+
+// Iniciar servidor
 app.listen(3000, () => {
-  console.log("Servidor escuchando en http://localhost:3000");
+  console.log("Servidor listo en http://localhost:3000");
 });
