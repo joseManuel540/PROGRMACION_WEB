@@ -20,9 +20,7 @@ app.get("/productos", async (req, res) => {
 app.get("/productos/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const [filas] = await db.query(
-      "SELECT * FROM productos WHERE id = ?", [id]
-    );
+    const [filas] = await db.query("SELECT * FROM productos WHERE id = ?", [id]);
 
     if (filas.length === 0) {
       return res.status(404).json({ error: "No existe" });
@@ -41,17 +39,10 @@ app.post("/productos", async (req, res) => {
     const { nombre, precio, stock } = req.body;
 
     if (
-      typeof nombre !== "string" ||
-      nombre.trim() === "" ||
-      typeof precio !== "number" ||
-      !Number.isFinite(precio) ||
-      precio < 0 ||
-      !Number.isInteger(stock) ||
-      stock < 0
+      typeof nombre !== "string" || nombre.trim() === "" || typeof precio !== "number" ||
+      !Number.isFinite(precio) || precio < 0 || !Number.isInteger(stock) || stock < 0
     ) {
-      return res.status(400).json({
-        error: "Los datos del producto no son válidos"
-      });
+      return res.status(400).json({error: "Los datos del producto no son válidos"});
     }
 
     const [resultado] = await db.query(
@@ -91,13 +82,8 @@ app.put("/productos/:id", async (req, res) => {
     const { nombre, precio, stock } = req.body;
 
     if (
-      typeof nombre !== "string" ||
-      nombre.trim() === "" ||
-      typeof precio !== "number" ||
-      !Number.isFinite(precio) ||
-      precio < 0 ||
-      !Number.isInteger(stock) ||
-      stock < 0
+      typeof nombre !== "string" || nombre.trim() === "" || typeof precio !== "number" ||
+      !Number.isFinite(precio) || precio < 0 || !Number.isInteger(stock) || stock < 0
     ) {
       return res.status(400).json({
         error: "Los datos del producto no son válidos"
@@ -109,12 +95,7 @@ app.put("/productos/:id", async (req, res) => {
       [nombre.trim(), precio, stock, id]
     );
 
-    res.status(200).json({
-      id,
-      nombre: nombre.trim(),
-      precio,
-      stock
-    });
+    res.status(200).json({id, nombre: nombre.trim(), precio, stock});
   } catch (error) {
     console.error(error.message);
     res.status(500).json({ error: "Error en la base de datos" });
