@@ -50,12 +50,7 @@ app.post("/productos", async (req, res) => {
       [nombre.trim(), precio, stock]
     );
 
-    const nuevoProducto = {
-      id: resultado.insertId,
-      nombre: nombre.trim(),
-      precio,
-      stock
-    };
+    const nuevoProducto = {id: resultado.insertId, nombre: nombre.trim(), precio, stock};
 
     res.status(201).json(nuevoProducto);
   } catch (error) {
